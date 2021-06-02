@@ -1,0 +1,16 @@
+[package]
+name = "bujo"
+version = "0.1.0"
+authors = ["Daniel Correia <dan.reia@gmail.com>"]
+edition = "2018"
+description = "A Command Line Application (CLI) of the Bullet Journal Method"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ansi_term = "0.12.1"
+clap = "2.33.3"
+home = "0.5.3"
+toml = "0.5.8"
+serde = "1.0.125"
+serde_derive = "1.0.125"
