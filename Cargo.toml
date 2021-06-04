@@ -1,6 +1,6 @@
 [package]
 name = "bujo"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Daniel Correia <dan.reia@gmail.com>"]
 edition = "2018"
 description = "A Command Line Application (CLI) of the Bullet Journal Method"
@@ -11,6 +11,6 @@ description = "A Command Line Application (CLI) of the Bullet Journal Method"
 ansi_term = "0.12.1"
 clap = "2.33.3"
 home = "0.5.3"
-toml = "0.5.8"
-serde = "1.0.125"
-serde_derive = "1.0.125"
+serde = "1.0.126"
+serde_json = "1.0.64"
+serde_derive = "1.0.126"
