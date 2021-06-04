@@ -1,6 +1,5 @@
 use home::home_dir;
 use serde_derive::{Deserialize, Serialize};
-use serde_json;
 use std::fs;
 use std::path::PathBuf;
 
@@ -16,7 +15,7 @@ impl Config {
         let bujo_temp: PathBuf = [home_temp.to_str().unwrap(), ".bujorc"].iter().collect();
 
         let config: Config = match fs::read_to_string(&bujo_temp) {
-            Ok(file) => serde_json::from_str(&file.to_string()).unwrap(),
+            Ok(file) => serde_json::from_str(&file).unwrap(),
             Err(_) => Config {
                 home: home_temp,
                 bujorc: bujo_temp,
@@ -26,7 +25,7 @@ impl Config {
     }
 
     pub fn initialize(&self) {
-        if self.bujorc.exists() == true {
+        if self.bujorc.exists(){
             println!(".bujorc already exists");
         } else {
             let bujo = Config {
