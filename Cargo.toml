@@ -3,7 +3,8 @@ name = "bujo"
 version = "0.0.1"
 authors = ["Daniel Correia <dan.reia@gmail.com>"]
 edition = "2018"
-description = "A Command Line Application (CLI) of the Bullet Journal Method"
+description = "A Command Line Interface (CLI) application of the Bullet Journal Method"
+license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
