@@ -4,7 +4,7 @@ mod config;
 use crate::config::Config;
 
 mod data;
-use crate::data::{BujoObject, Data};
+use crate::data::Data;
 
 ///Main binary application for bujo CLI
 fn main() {
