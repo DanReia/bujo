@@ -11,3 +11,8 @@ Cargo.lock
 
 # Misc
 .DS_store
+
+# Added by cargo
+
+/target
+
