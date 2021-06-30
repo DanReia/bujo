@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::process;
+use std::time::SystemTime;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Data {
@@ -74,10 +75,26 @@ impl Data {
     /// This will need to be modified alot going forward
     pub fn add_object(&mut self, content_temp: String, content_type_temp: String) -> &mut Data{
         let key = self.get_max_key() + 1;
+
+        let content_t;
+        let sig;
+        if content_type_temp == "note"{
+            content_t = String::from("note");
+            sig = String::from("-");
+        }
+        else if content_type_temp =="event"{
+            content_t = String::from("event");
+            sig = String::from("\u{25CB}");
+        }
+        else{
+            content_t = String::from("task");
+            sig = String::from("\u{00B7}");
+        }
         let obj = BujoObject {
             content: content_temp,
-            content_type: content_type_temp,
-            signifier: String::from("."),
+            content_type: content_t,
+            signifier: sig,
+            time_added: SystemTime::now(),
         };
         self.content.insert(key, obj);
         self
@@ -100,16 +117,7 @@ pub struct BujoObject {
     pub content_type: String,
     pub content: String,
     pub signifier: String,
-}
-
-impl Default for BujoObject {
-    fn default() -> BujoObject {
-        BujoObject {
-            content_type: String::from("task"),
-            content: String::from("placeholder text"),
-            signifier: String::from("."),
-        }
-    }
+    pub time_added: SystemTime, 
 }
 
 #[cfg(test)]

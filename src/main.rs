@@ -1,8 +1,6 @@
 //! Main binary application for bujo CLI
 
-use clap::{
-    crate_authors, crate_description, crate_name, crate_version, App, Arg, SubCommand,
-};
+use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, SubCommand};
 use std::process;
 
 mod config;
@@ -10,6 +8,9 @@ use crate::config::Config;
 
 mod data;
 use crate::data::Data;
+
+mod display;
+use crate::display::basic_print;
 
 fn main() {
     let matches = App::new(crate_name!())
@@ -20,12 +21,41 @@ fn main() {
         .subcommand(SubCommand::with_name("clean").about("Remove .bujorc and .bujo directory"))
         .subcommand(SubCommand::with_name("print").about("Print raw json data"))
         .subcommand(
-            SubCommand::with_name("add").about("Add entry to bujo").arg(
-                Arg::with_name("task_description")
-                    .value_name("task")
-                    .help("This is the actual entry to be added to the bujo")
-                    .multiple(true),
-            ),
+            SubCommand::with_name("add")
+                .about("Add entry to bujo")
+                .arg(
+                    Arg::with_name("task_description")
+                        .value_name("task")
+                        .help("This is the actual entry to be added to the bujo")
+                        .multiple(true),
+                )
+                .arg(
+                    Arg::with_name("task")
+                        .takes_value(false)
+                        .short("t")
+                        .help("task flag")
+                        .requires("task_description")
+                        .conflicts_with("note")
+                        .conflicts_with("event"),
+                )
+                .arg(
+                    Arg::with_name("note")
+                        .takes_value(false)
+                        .short("n")
+                        .help("note flag")
+                        .requires("task_description")
+                        .conflicts_with("task")
+                        .conflicts_with("event"),
+                )
+                .arg(
+                    Arg::with_name("event")
+                        .takes_value(false)
+                        .short("e")
+                        .help("event flag")
+                        .requires("task_description")
+                        .conflicts_with("note")
+                        .conflicts_with("task"),
+                ),
         )
         .subcommand(
             SubCommand::with_name("delete")
@@ -46,21 +76,31 @@ fn main() {
             process::exit(0)
         }
         ("delete", Some(sub_m)) => {
-
             let id: i64 = sub_m.value_of("id").unwrap().parse().unwrap();
             data.read().delete_object(&id).write();
         }
         ("print", _) => {
-            for c in data.read().content.iter() {
-                println!("{:?}", c);
-            }
+            basic_print(data) 
         }
         ("add", Some(sub)) => {
             let x: Vec<&str> = sub
                 .values_of("task_description")
                 .expect("Failed at add:task_description")
                 .collect();
-            data.read().add_object(x.join(" ").to_string(), String::from("task")).write();
+          
+            let content_type;
+            if sub.is_present("event") {
+                content_type = String::from("event");
+            } else if sub.is_present("note"){
+                content_type = String::from("note");
+            }
+            else{
+                content_type = String::from("task");
+            }
+
+            data.read()
+                .add_object(x.join(" ").to_string(), content_type)
+                .write();
         }
         (_, None) => println!("No argument provided"),
         _ => unreachable!(),
