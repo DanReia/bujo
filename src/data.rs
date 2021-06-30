@@ -19,62 +19,43 @@ use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use std::{io, process};
+use std::process;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Data {
     pub content: HashMap<i64, BujoObject>,
+    pub data_dir: PathBuf
 }
 
 impl Data {
-    /// Constructor method for Data
-    pub fn new() -> Data {
-        let data_dict = Data {
+    pub fn new(bujo_data_dir: &PathBuf) -> Data{
+        Data{
             content: HashMap::new(),
-        };
-        data_dict
+            data_dir: bujo_data_dir.to_path_buf(),
+        }
     }
 
-    /// Method to read data from file. Used at the start of every call to bujo.
+    /// Method to read data from file.
     /// The method always reads a file called data.json in the directory specified in the .bujorc.
-    /// If the .bujo_data dir does not exist yet, it will be created.
-    pub fn read(bujo_data_dir: &PathBuf) -> Data {
-        let data_file: PathBuf = [bujo_data_dir.to_str().unwrap(), "data.json"]
+    pub fn read(&mut self) -> Data {
+        let data_file: PathBuf = [self.data_dir.to_str().unwrap(), "data.json"]
             .iter()
             .collect();
-        let open_file = match fs::File::open(&data_file) {
+
+        let file = match fs::read_to_string(&data_file){
             Ok(file) => file,
             Err(_) => {
-                let data = Data::new();
-                if bujo_data_dir.exists() == false {
-                    let mut create_dir = String::new();
-                    println!("Data directory does not exist, would you like to create it at {:?}?[y/n]",bujo_data_dir);
-                    io::stdin()
-                        .read_line(&mut create_dir)
-                        .expect("Failed to input, mut be [y/n]");
-                    println!("Answer: {}",create_dir);
-
-                    if create_dir.trim()== "y"{
-                        fs::create_dir(&bujo_data_dir).unwrap();
-                        data.write(&bujo_data_dir);
-                        println!("Created directory:{:?}",bujo_data_dir);
-                        println!("Created database: data.json");
-                    } else {
-                        println!("Exiting process");
-                        process::exit(0);
-                    }
-                };
-                let file = fs::File::open(&data_file).unwrap();
-                file
-            }
+                println!("It appears that the data directory does not exist yet. Try run `bujo init` first");
+                process::exit(1);
+                }
         };
-        let read_data: Data = serde_json::from_reader(open_file).unwrap();
-        read_data
+        let read_file: Data = serde_json::from_str(&file).expect("Error reading file");
+        read_file
     }
 
     /// Write the data back to disk. Used at the end of every CLI call.
-    pub fn write(&self, bujo_data_dir: &PathBuf) {
-        let data_file: PathBuf = [bujo_data_dir.to_str().unwrap(), "data.json"]
+    pub fn write(&self) {
+        let data_file: PathBuf = [self.data_dir.to_str().unwrap(), "data.json"]
             .iter()
             .collect();
         let json_string = serde_json::to_string(&self).unwrap();
@@ -91,7 +72,7 @@ impl Data {
 
     /// Add an object to the Data HashMap. The idea is to only provide what is needed each time.
     /// This will need to be modified alot going forward
-    pub fn add_object(&mut self, content_temp: String, content_type_temp: String) {
+    pub fn add_object(&mut self, content_temp: String, content_type_temp: String) -> &mut Data{
         let key = self.get_max_key() + 1;
         let obj = BujoObject {
             content: content_temp,
@@ -99,14 +80,15 @@ impl Data {
             signifier: String::from("."),
         };
         self.content.insert(key, obj);
-        println!("Content:{:?}\n", self.content)
+        self
     }
 
     /// Current a method called raw_delete was added purely to delete entries from the HashMap
     /// directly. In the future this will need some sort of more complex structure for improved
     /// usage.
-    pub fn delete_object(&mut self, id: &i64) {
+    pub fn delete_object(&mut self, id: &i64)-> &mut Data {
         self.content.remove(id);
+        self
     }
 }
 
@@ -127,5 +109,32 @@ impl Default for BujoObject {
             content: String::from("placeholder text"),
             signifier: String::from("."),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+
+    #[test]
+    fn test_serde(){
+        let path: PathBuf = ["./"].iter().collect();
+        let mut data=Data::new(&path);
+        data.add_object(String::from("this is a test"),String::from("task"));
+        let serialized = serde_json::to_string(&data).unwrap();
+        println!("{:?}",serialized);
+
+
+        let data_file: PathBuf = [data.data_dir.to_str().unwrap(), "data.json"]
+            .iter()
+            .collect();
+        fs::write(&data_file, &serialized).expect("There was no data directory to write to");
+
+
+        let file = fs::read_to_string(&data_file).unwrap();
+        let deserialized: Data = serde_json::from_str(&file).unwrap();
+        assert_eq!(data.data_dir,deserialized.data_dir);
+        println!("{:?}",deserialized);
+
     }
 }
