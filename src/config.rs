@@ -67,7 +67,7 @@ impl Config {
             Err(_) => println!("No .bujorc to delete"),
         };
 
-        match fs::remove_dir(&self.data_dir) {
+        match fs::remove_dir_all(&self.data_dir) {
             Ok(_) => println!("Deleted .bujo_data"),
             Err(_) => println!("No .bujo_data to delete"),
         };

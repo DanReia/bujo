@@ -1,24 +1,25 @@
-/// The purpose of the data module is to implement the serialization and deserialization of objects
-/// for storage.
-///
-/// Bujo Object
-///     - content_type: "task", "note", "event"
-///     - content: the actual text
-///     - id: identifier to be used for reference in the cli
-///     - uuid: unique identifier
-///
-/// Ideally this all sits in a Data struct with a HashMap for content:
-///     Data.content:
-///         - key: id
-///         - value: BujoObject
-/// and methods for serialize and deserialize etc.
-///
-/// To prevent the data from becoming too large, all completed tasks should go into a separate data
-/// file. //TODO
+//! The purpose of the data module is to implement the serialization and deserialization of objects
+//! for storage.
+//!
+//! Bujo Object
+//!     - content_type: "task", "note", "event"
+//!     - content: the actual text
+//!     - id: identifier to be used for reference in the cli
+//!     - uuid: unique identifier
+//!
+//! Ideally this all sits in a Data struct with a HashMap for content:
+//!     Data.content:
+//!         - key: id
+//!         - value: BujoObject
+//! and methods for serialize and deserialize etc.
+//!
+//! To prevent the data from becoming too large, all completed tasks should go into a separate data
+//! file. //TODO
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::{io, process};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Data {
@@ -46,9 +47,23 @@ impl Data {
             Err(_) => {
                 let data = Data::new();
                 if bujo_data_dir.exists() == false {
-                    fs::create_dir(&bujo_data_dir).unwrap();
-                }
-                data.write(&bujo_data_dir);
+                    let mut create_dir = String::new();
+                    println!("Data directory does not exist, would you like to create it at {:?}?[y/n]",bujo_data_dir);
+                    io::stdin()
+                        .read_line(&mut create_dir)
+                        .expect("Failed to input, mut be [y/n]");
+                    println!("Answer: {}",create_dir);
+
+                    if create_dir.trim()== "y"{
+                        fs::create_dir(&bujo_data_dir).unwrap();
+                        data.write(&bujo_data_dir);
+                        println!("Created directory:{:?}",bujo_data_dir);
+                        println!("Created database: data.json");
+                    } else {
+                        println!("Exiting process");
+                        process::exit(0);
+                    }
+                };
                 let file = fs::File::open(&data_file).unwrap();
                 file
             }
@@ -63,7 +78,7 @@ impl Data {
             .iter()
             .collect();
         let json_string = serde_json::to_string(&self).unwrap();
-        fs::write(data_file, json_string).unwrap();
+        fs::write(data_file, json_string).expect("There was no data directory to write to");
     }
 
     /// Get the largest key value so that any new entry does not overwrite any
