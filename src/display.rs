@@ -1,7 +1,9 @@
 use crate::data::{BujoObject, Data};
 use ansi_term::Colour::{Fixed, Purple};
 use terminal_size::{terminal_size, Height, Width};
+use chrono::{DateTime,Local,Utc,NaiveDateTime};
 
+#[allow(dead_code)]
 pub struct Printer {
     data: Data,
     max_id_width: usize,
@@ -60,7 +62,8 @@ impl Printer {
         );
     }
 
-    fn print_vec(&self, data_vector: Vec<(&i64, &BujoObject)>) {
+    fn print_vec(&self, data_vector: Vec<(&i64, &BujoObject)>, title: String) {
+        self.print_header(title);
         for c in data_vector.iter() {
             let num_blanks = self.max_id_width - c.0.to_string().len();
             println!(
@@ -73,12 +76,24 @@ impl Printer {
             );
         }
     }
+    pub fn daily(&self){
+        //Filter data where timestamp is equal to today's date
+        let mut data_vec_filtered: Vec<(&i64, &BujoObject)> = self.data.content.iter().filter(|x|{
+            let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(x.1.time_added, 0), Utc);
+            Local::now().date()==dt.date()
+        }).collect();
+
+        //Sort data by timestamp
+        data_vec_filtered.sort_by_key(|a| a.1.time_added);
+
+        //Display
+        self.print_vec(data_vec_filtered,String::from("Daily"));
+    }
 
     pub fn all(&self) {
-        //get data sorted by time added
+        //Sort data by timestamp
         let mut data_vec: Vec<(&i64, &BujoObject)> = self.data.content.iter().collect();
         data_vec.sort_by_key(|a| a.1.time_added);
-        self.print_header(String::from("bujo"));
-        self.print_vec(data_vec);
+        self.print_vec(data_vec,String::from("Bujo"));
     }
 }

@@ -20,6 +20,7 @@ fn main() {
         .subcommand(SubCommand::with_name("init").about("Initialize bujo app and create .bujorc"))
         .subcommand(SubCommand::with_name("clean").about("Remove .bujorc and .bujo directory"))
         .subcommand(SubCommand::with_name("print").about("Print raw json data"))
+        .subcommand(SubCommand::with_name("daily").about("Print bujo daily view"))
         .subcommand(
             SubCommand::with_name("add")
                 .about("Add entry to bujo")
@@ -81,6 +82,9 @@ fn main() {
         }
         ("print", _) => {
             Printer::new(data).all();
+        }
+        ("daily", _) => {
+            Printer::new(data).daily();
         }
         ("add", Some(sub)) => {
             let x: Vec<&str> = sub
