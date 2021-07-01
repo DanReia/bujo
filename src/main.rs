@@ -10,7 +10,7 @@ mod data;
 use crate::data::Data;
 
 mod display;
-use crate::display::basic_print;
+use crate::display::Printer;
 
 fn main() {
     let matches = App::new(crate_name!())
@@ -80,7 +80,7 @@ fn main() {
             data.read().delete_object(&id).write();
         }
         ("print", _) => {
-            basic_print(data) 
+            Printer::new(data).all();
         }
         ("add", Some(sub)) => {
             let x: Vec<&str> = sub

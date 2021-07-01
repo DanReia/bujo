@@ -21,6 +21,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 use std::time::SystemTime;
+use chrono::{Local,DateTime};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Data {
@@ -94,7 +95,7 @@ impl Data {
             content: content_temp,
             content_type: content_t,
             signifier: sig,
-            time_added: SystemTime::now(),
+            time_added: Local::now().timestamp(),
         };
         self.content.insert(key, obj);
         self
@@ -117,7 +118,7 @@ pub struct BujoObject {
     pub content_type: String,
     pub content: String,
     pub signifier: String,
-    pub time_added: SystemTime, 
+    pub time_added: i64,
 }
 
 #[cfg(test)]
