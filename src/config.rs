@@ -4,7 +4,8 @@
 use home::home_dir;
 use serde_derive::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::PathBuf; 
+use crate::data::Data;
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
@@ -58,6 +59,16 @@ impl Config {
             fs::create_dir(&self.data_dir).unwrap();
             println!("Created .bujo_data at: {:#?}",self.data_dir);
         }
+
+        let data_file: PathBuf = [&self.data_dir.to_str().unwrap(), "data.json"].iter().collect();
+        if data_file.exists(){
+            println!("Data directory: {:#?} already exists",data_file);
+        }
+        else {
+            Data::new(&self.data_dir).write();
+            println!("Created data.json at: {:#?}",data_file);
+        }
+
     }
 
     /// Config::clean() deletes the .bujorc and .bujo_data if it exists.
@@ -67,7 +78,7 @@ impl Config {
             Err(_) => println!("No .bujorc to delete"),
         };
 
-        match fs::remove_dir(&self.data_dir) {
+        match fs::remove_dir_all(&self.data_dir) {
             Ok(_) => println!("Deleted .bujo_data"),
             Err(_) => println!("No .bujo_data to delete"),
         };
