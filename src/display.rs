@@ -1,7 +1,7 @@
 use crate::data::{BujoObject, Data};
 use ansi_term::Colour::{Fixed, Purple};
+use chrono::{DateTime, Local, NaiveDateTime, Utc};
 use terminal_size::{terminal_size, Height, Width};
-use chrono::{DateTime,Local,Utc,NaiveDateTime};
 
 #[allow(dead_code)]
 pub struct Printer {
@@ -76,24 +76,52 @@ impl Printer {
             );
         }
     }
-    pub fn daily(&self){
+    pub fn daily(&self) {
         //Filter data where timestamp is equal to today's date
-        let mut data_vec_filtered: Vec<(&i64, &BujoObject)> = self.data.content.iter().filter(|x|{
-            let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(x.1.time_added, 0), Utc);
-            Local::now().date()==dt.date()
-        }).collect();
+        let mut data_vec_filtered: Vec<(&i64, &BujoObject)> = self
+            .data
+            .content
+            .iter()
+            .filter(|x| {
+                let dt = DateTime::<Utc>::from_utc(
+                    NaiveDateTime::from_timestamp(x.1.current_date, 0),
+                    Utc,
+                );
+                Local::now().date() == dt.date()
+            })
+            .collect();
 
         //Sort data by timestamp
-        data_vec_filtered.sort_by_key(|a| a.1.time_added);
+        data_vec_filtered.sort_by_key(|a| a.1.daily_id);
 
         //Display
-        self.print_vec(data_vec_filtered,String::from("Daily"));
+        self.print_header(String::from("Daily"));
+        for c in data_vec_filtered.iter() {
+            let num_blanks = self.max_id_width - c.0.to_string().len();
+            println!(
+                "{}{} {} {} {}",
+                " ".repeat(num_blanks),
+                c.0,
+                Fixed(self.border_color).paint("|"),
+                c.1.signifier,
+                c.1.content
+            );
+        }
     }
 
     pub fn all(&self) {
         //Sort data by timestamp
         let mut data_vec: Vec<(&i64, &BujoObject)> = self.data.content.iter().collect();
-        data_vec.sort_by_key(|a| a.1.time_added);
-        self.print_vec(data_vec,String::from("Bujo"));
+        data_vec.sort_by_key(|a| a.1.current_date);
+        self.print_vec(data_vec, String::from("Bujo"));
+    }
+
+    pub fn raw(&self) {
+        self.print_header(String::from("Raw"));
+        let mut data_vec: Vec<(&i64, &BujoObject)> = self.data.content.iter().collect();
+        data_vec.sort_by_key(|a| a.1.current_date);
+        for c in data_vec {
+            println!("{:?}\n", c);
+        }
     }
 }

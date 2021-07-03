@@ -19,8 +19,23 @@ fn main() {
         .about(crate_description!())
         .subcommand(SubCommand::with_name("init").about("Initialize bujo app and create .bujorc"))
         .subcommand(SubCommand::with_name("clean").about("Remove .bujorc and .bujo directory"))
-        .subcommand(SubCommand::with_name("print").about("Print raw json data"))
-        .subcommand(SubCommand::with_name("daily").about("Print bujo daily view"))
+        .subcommand(SubCommand::with_name("print").about("Print all bujo objects"))
+        .subcommand(SubCommand::with_name("debug").about("Print raw json data"))
+        .subcommand(
+            App::new("daily")
+                .about("Perform actions on the daily view")
+                .subcommand(
+                    SubCommand::with_name("complete")
+                        .about("Completes a task")
+                        .arg(Arg::with_name("id").takes_value(true)),
+                )
+                .subcommand(
+                    SubCommand::with_name("schedule")
+                        .about("Schedules a task")
+                        .arg(Arg::with_name("id").takes_value(true))
+                        .arg(Arg::with_name("date").takes_value(true).requires("id")),
+                )
+        )
         .subcommand(
             SubCommand::with_name("add")
                 .about("Add entry to bujo")
@@ -63,6 +78,10 @@ fn main() {
                 .about("Delete from raw json using HashMap id")
                 .arg(Arg::with_name("id").takes_value(true)),
         )
+        .subcommand(
+            SubCommand::with_name("migrate")
+                .about("Migrate all uncompleted tasks to today")
+        )
         .get_matches();
 
     let config: Config = Config::new();
@@ -80,25 +99,54 @@ fn main() {
             let id: i64 = sub_m.value_of("id").unwrap().parse().unwrap();
             data.read().delete_object(&id).write();
         }
+        ("migrate", _) => {
+            data.read().migrate_objects().write();
+        }
         ("print", _) => {
             Printer::new(data).all();
         }
-        ("daily", _) => {
-            Printer::new(data).daily();
+        ("debug", _) => {
+            Printer::new(data).raw();
         }
+        ("daily", Some(daily_app)) => match daily_app.subcommand() {
+            ("complete", Some(complete_subcommand)) => {
+                let id = complete_subcommand
+                    .value_of("id")
+                    .expect("Must enter daily id number");
+
+                data.read()
+                    .complete_object(id.to_string().parse().unwrap(), String::from("daily"))
+                    .write();
+            }
+            ("schedule", Some(schedule_subcommand)) => {
+                let id = schedule_subcommand
+                    .value_of("id")
+                    .expect("Must enter daily id number");
+                let date = schedule_subcommand
+                    .value_of("date")
+                    .expect("Must enter date after id");
+                data.read()
+                    .schedule_object(
+                        id.to_string().parse().unwrap(),
+                        String::from("daily"),
+                        date.to_string(),
+                    )
+                    .write();
+            }
+            _ => Printer::new(data).daily(),
+        },
         ("add", Some(sub)) => {
             let x: Vec<&str> = sub
                 .values_of("task_description")
                 .expect("Failed at add:task_description")
                 .collect();
-          
+
             let content_type;
             if sub.is_present("event") {
                 content_type = String::from("event");
-            } else if sub.is_present("note"){
+            } else if sub.is_present("note") {
                 content_type = String::from("note");
-            }
-            else{
+            } else {
                 content_type = String::from("task");
             }
 
