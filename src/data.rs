@@ -15,7 +15,7 @@
 //!
 //! To prevent the data from becoming too large, all completed tasks should go into a separate data
 //! file. //TODO
-use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime,Utc,DateTime};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -51,7 +51,7 @@ impl Data {
             }
         };
         let read_file: Data = serde_json::from_str(&file).expect("Error reading file");
-        read_file
+        read_file.calculate_ids()
     }
 
     /// Write the data back to disk. Used at the end of every CLI call.
@@ -183,6 +183,26 @@ impl Data {
         self.content.remove(id);
         self
     }
+    
+    /// Very poor implementation
+    pub fn calculate_ids(mut self)-> Data{
+        let mut data_vec: Vec<(i64, BujoObject)> = self.content.clone().into_iter().collect(); 
+        data_vec.sort_by_key(|a| a.1.current_date);
+        self.content=HashMap::new();
+        let mut counter:i64 = 1;
+        for mut tuple in data_vec.into_iter(){
+            let dt = DateTime::<Utc>::from_utc(
+                NaiveDateTime::from_timestamp(tuple.1.current_date, 0),
+                Utc,
+            );
+            if Local::now().date() == dt.date(){
+                tuple.1.daily_id=counter;
+                counter=counter+1;
+            }
+            self.content.insert(tuple.0,tuple.1);
+        }
+        self
+    }
 }
 
 pub enum Signifier {
@@ -206,7 +226,7 @@ impl Signifier {
 /// This is the main object template that will be extended for every entry in the Data HashMap.
 /// The idea would be that more and more attributes are added as needed to identify what the object
 /// is and where it is in the system.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug,Clone)]
 pub struct BujoObject {
     pub content_type: String,
     pub content: String,
@@ -215,12 +235,6 @@ pub struct BujoObject {
     pub date_added: i64,
     pub daily_id: i64,
 }
-
-// impl Clone for BujoObject {
-//     fn clone(&self) -> BujoObject {
-//         self
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

@@ -14,7 +14,7 @@ pub struct Printer {
 }
 
 impl Printer {
-    pub fn new(mut incoming_data: Data) -> Printer {
+    pub fn new(incoming_data: Data) -> Printer {
         let read_data = incoming_data.read();
 
         //get the max width for the id column based on largest id in HashMap
@@ -97,11 +97,11 @@ impl Printer {
         //Display
         self.print_header(String::from("Daily"));
         for c in data_vec_filtered.iter() {
-            let num_blanks = self.max_id_width - c.0.to_string().len();
+            let num_blanks = self.max_id_width - c.1.daily_id.to_string().len();
             println!(
                 "{}{} {} {} {}",
                 " ".repeat(num_blanks),
-                c.0,
+                c.1.daily_id,
                 Fixed(self.border_color).paint("|"),
                 c.1.signifier,
                 c.1.content
