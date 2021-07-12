@@ -76,6 +76,36 @@ impl Printer {
             );
         }
     }
+
+    fn print_subtasks(&self, parent_task: (&i64, &BujoObject), num_blanks: usize) {
+        let mut subvec: Vec<(&i64, &BujoObject)> = parent_task
+            .1
+            .subtasks
+            .iter()
+            .filter(|x| {
+                let dt = DateTime::<Utc>::from_utc(
+                    NaiveDateTime::from_timestamp(x.1.current_date, 0),
+                    Utc,
+                );
+                Local::now().date() == dt.date()
+            })
+            .collect();
+        subvec.sort_by_key(|a| a.1.daily_id);
+        for d in subvec {
+            println!(
+                "{}{} {} {} {} {}",
+                " ".repeat(num_blanks),
+                d.1.daily_id,
+                Fixed(self.border_color).paint("|"),
+                " ".repeat(parent_task.1.signifier.len()),
+                d.1.signifier,
+                d.1.content
+            );
+            if d.1.subtasks.len() > 0 {
+                self.print_subtasks(d, num_blanks);
+            }
+        }
+    }
     pub fn daily(&self) {
         //Filter data where timestamp is equal to today's date
         let mut data_vec_filtered: Vec<(&i64, &BujoObject)> = self
@@ -106,6 +136,33 @@ impl Printer {
                 c.1.signifier,
                 c.1.content
             );
+            
+            //Recursion!!
+            self.print_subtasks(*c,num_blanks);
+
+            // let mut subvec: Vec<(&i64, &BujoObject)> =
+            //     c.1.subtasks
+            //         .iter()
+            //         .filter(|x| {
+            //             let dt = DateTime::<Utc>::from_utc(
+            //                 NaiveDateTime::from_timestamp(x.1.current_date, 0),
+            //                 Utc,
+            //             );
+            //             Local::now().date() == dt.date()
+            //         })
+            //         .collect();
+            // subvec.sort_by_key(|a| a.1.daily_id);
+            // for d in subvec {
+            //     println!(
+            //         "{}{} {} {} {} {}",
+            //         " ".repeat(num_blanks),
+            //         d.1.daily_id,
+            //         Fixed(self.border_color).paint("|"),
+            //         " ".repeat(c.1.signifier.len()),
+            //         d.1.signifier,
+            //         d.1.content
+            //     );
+            // }
         }
     }
 

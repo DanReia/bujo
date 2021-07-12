@@ -35,6 +35,45 @@ fn main() {
                         .arg(Arg::with_name("id").takes_value(true))
                         .arg(Arg::with_name("date").takes_value(true).requires("id")),
                 )
+                .subcommand(
+                    SubCommand::with_name("subtask")
+                        .arg(Arg::with_name("id").takes_value(true))
+                        .about("Add a subtask to a task")
+                        .arg(
+                            Arg::with_name("task_description")
+                                .value_name("task")
+                                .help("This is the actual entry to be added to the bujo")
+                                .multiple(true)
+                                .requires("id"),
+                        )
+                        .arg(
+                            Arg::with_name("task")
+                                .takes_value(false)
+                                .short("t")
+                                .help("task flag")
+                                .requires("task_description")
+                                .conflicts_with("note")
+                                .conflicts_with("event"),
+                        )
+                        .arg(
+                            Arg::with_name("note")
+                                .takes_value(false)
+                                .short("n")
+                                .help("note flag")
+                                .requires("task_description")
+                                .conflicts_with("task")
+                                .conflicts_with("event"),
+                        )
+                        .arg(
+                            Arg::with_name("event")
+                                .takes_value(false)
+                                .short("e")
+                                .help("event flag")
+                                .requires("task_description")
+                                .conflicts_with("note")
+                                .conflicts_with("task"),
+                        ),
+                ),
         )
         .subcommand(
             SubCommand::with_name("add")
@@ -79,13 +118,12 @@ fn main() {
                 .arg(Arg::with_name("id").takes_value(true)),
         )
         .subcommand(
-            SubCommand::with_name("migrate")
-                .about("Migrate all uncompleted tasks to today")
+            SubCommand::with_name("migrate").about("Migrate all uncompleted tasks to today"),
         )
         .get_matches();
 
     let config: Config = Config::new();
-    let mut data = Data::new(&config.data_dir);
+    let data = Data::new(&config.data_dir);
 
     match matches.subcommand() {
         ("init", _) => config.initialize(),
@@ -133,6 +171,29 @@ fn main() {
                     )
                     .write();
             }
+            ("subtask", Some(subtask_subcommand)) => {
+                let id = subtask_subcommand
+                    .value_of("id")
+                    .expect("Must enter daily id number");
+                let x: Vec<&str> = subtask_subcommand
+                    .values_of("task_description")
+                    .expect("Failed at add:task_description")
+                    .collect();
+
+                let content_type;
+                if subtask_subcommand.is_present("event") {
+                    content_type = String::from("event");
+                } else if subtask_subcommand.is_present("note") {
+                    content_type = String::from("note");
+                } else {
+                    content_type = String::from("task");
+                }
+
+            data.read()
+                .add_subtask(id.to_string().parse().unwrap(),String::from("daily"),x.join(" ").to_string(), content_type)
+                .write();
+            }
+
             _ => Printer::new(data).daily(),
         },
         ("add", Some(sub)) => {

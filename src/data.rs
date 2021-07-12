@@ -15,7 +15,7 @@
 //!
 //! To prevent the data from becoming too large, all completed tasks should go into a separate data
 //! file. //TODO
-use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime,Utc,DateTime};
+use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -71,6 +71,13 @@ impl Data {
         }
     }
 
+    fn get_max_subtask_key(parent_hashmap: &HashMap<i64, BujoObject>) -> i64 {
+        match parent_hashmap.keys().max() {
+            Some(x) => *x,
+            None => 0,
+        }
+    }
+
     /// Get max daily id
     fn get_max_daily_id(&self) -> i64 {
         let daily_ids: Vec<i64> = self.content.iter().map(|x| x.1.daily_id).collect();
@@ -80,6 +87,7 @@ impl Data {
         };
         max_val
     }
+
 
     /// Add an object to the Data HashMap. The idea is to only provide what is needed each time.
     /// This will need to be modified alot going forward
@@ -109,8 +117,51 @@ impl Data {
             current_date: date,
             date_added: date,
             daily_id: daily_key,
-        };
+            subtasks: HashMap::new(),
+        };  
         self.content.insert(key, obj);
+        self
+    }
+
+    pub fn add_subtask(
+        mut self,
+        id: i64,
+        id_type: String,
+        content_temp: String,
+        content_type_temp: String,
+    ) -> Data {
+        let primary_key = self.get_primary_key(&id, id_type);
+        let max_daily_key = self.get_max_daily_id();
+
+        let content_t;
+        let sig;
+        if content_type_temp == "note" {
+            content_t = String::from("note");
+            sig = Signifier::Note.value();
+        } else if content_type_temp == "event" {
+            content_t = String::from("event");
+            sig = Signifier::Event.value();
+        } else {
+            content_t = String::from("task");
+            sig = Signifier::Task.value();
+        }
+
+        let date = Local::now().timestamp();
+
+        let upper_task = self.content.get_mut(&primary_key).expect("Subtask hashMap not available");
+        let subtask_key = Data::get_max_subtask_key(&upper_task.subtasks) + 1;
+
+        let obj = BujoObject {
+            content: content_temp,
+            content_type: content_t,
+            signifier: sig,
+            current_date: date,
+            date_added: date,
+            daily_id: max_daily_key, //change
+            subtasks: HashMap::new(),
+        };
+
+        upper_task.subtasks.insert(subtask_key,obj);
         self
     }
 
@@ -148,16 +199,22 @@ impl Data {
         self
     }
 
-    ///Method to migrate objects to today's date. 
+    ///Method to migrate objects to today's date.
     ///In the future we can make this more complex, however for now it moves all uncompleted tasks
     ///to the current day.
-    pub fn migrate_objects(mut self) ->Data {
+    pub fn migrate_objects(mut self) -> Data {
         let today_t = Local::now().timestamp();
-        let _:() = self.content.iter_mut().map(|x| {
-            if x.1.content_type == String::from("task") && x.1.signifier==Signifier::Task.value(){
-                x.1.current_date = today_t;
-            }
-        }).collect();
+        let _: () = self
+            .content
+            .iter_mut()
+            .map(|x| {
+                if x.1.content_type == String::from("task")
+                    && x.1.signifier == Signifier::Task.value()
+                {
+                    x.1.current_date = today_t;
+                }
+            })
+            .collect();
         self
     }
 
@@ -171,6 +228,18 @@ impl Data {
                         x.1.signifier = Signifier::Complete.value();
                     }
                 }
+
+                let _: () =
+                    x.1.subtasks
+                        .iter_mut()
+                        .map(|y| {
+                            if id_type == String::from("daily") {
+                                if y.1.daily_id == id {
+                                    y.1.signifier = Signifier::Complete.value();
+                                }
+                            }
+                        })
+                        .collect();
             })
             .collect();
         self
@@ -183,23 +252,83 @@ impl Data {
         self.content.remove(id);
         self
     }
-    
+
+    pub fn recursive_id(&mut self,mut tuple: (i64,BujoObject), mut counter:i64)-> ((i64,BujoObject),i64) {
+            let mut sub_vec: Vec<(i64, BujoObject)> = tuple.1.subtasks.clone().into_iter().collect();
+            sub_vec.sort_by_key(|a| a.1.current_date);
+
+            tuple.1.subtasks = HashMap::new();
+            for mut sub_tuple in sub_vec.into_iter() {
+                let sub_tuple_subtask_length = &sub_tuple.1.subtasks.len();
+                let sub_dt = DateTime::<Utc>::from_utc(
+                    NaiveDateTime::from_timestamp(tuple.1.current_date, 0),
+                    Utc,
+                );
+                if Local::now().date() == sub_dt.date() {
+                    sub_tuple.1.daily_id = counter;
+                    counter = counter + 1;
+                } else {
+                    sub_tuple.1.daily_id = i64::from(0);
+                }
+                let t2 = sub_tuple.1.clone();
+                tuple.1.subtasks.insert(sub_tuple.0, t2);
+                if sub_tuple_subtask_length> &0{
+                    let (next_tuple,counter) = self.recursive_id(sub_tuple,counter);
+                    return (next_tuple,counter)
+                }
+            }
+            (tuple,counter)
+    }
     /// Very poor implementation
-    pub fn calculate_ids(mut self)-> Data{
-        let mut data_vec: Vec<(i64, BujoObject)> = self.content.clone().into_iter().collect(); 
+    /// Currently does not account for subtasks
+    ///
+    /// 1. At every read, calculate new secondary id's
+    /// 2. Secondary id order needs to take into account subtasks to print in order
+    /// 3.
+    pub fn calculate_ids(mut self) -> Data {
+        // Read in data vector
+        let mut data_vec: Vec<(i64, BujoObject)> = self.content.clone().into_iter().collect();
+
+        //Sort data vector by its current date
         data_vec.sort_by_key(|a| a.1.current_date);
-        self.content=HashMap::new();
-        let mut counter:i64 = 1;
-        for mut tuple in data_vec.into_iter(){
+
+        self.content = HashMap::new();
+
+        let mut counter: i64 = 1;
+        for mut tuple in data_vec.into_iter() {
             let dt = DateTime::<Utc>::from_utc(
                 NaiveDateTime::from_timestamp(tuple.1.current_date, 0),
                 Utc,
             );
-            if Local::now().date() == dt.date(){
-                tuple.1.daily_id=counter;
-                counter=counter+1;
+            if Local::now().date() == dt.date() {
+                tuple.1.daily_id = counter;
+                counter = counter + 1;
+            } else {
+                tuple.1.daily_id = i64::from(0);
             }
-            self.content.insert(tuple.0,tuple.1);
+
+            // let mut sub_vec: Vec<(i64, BujoObject)> = tuple.1.subtasks.clone().into_iter().collect();
+            // sub_vec.sort_by_key(|a| a.1.current_date);
+
+            // tuple.1.subtasks = HashMap::new();
+            // for mut sub_tuple in sub_vec.into_iter() {
+
+            //     let sub_dt = DateTime::<Utc>::from_utc(
+            //         NaiveDateTime::from_timestamp(tuple.1.current_date, 0),
+            //         Utc,
+            //     );
+            //     if Local::now().date() == sub_dt.date() {
+            //         sub_tuple.1.daily_id = counter;
+            //         counter = counter + 1;
+            //     } else {
+            //         sub_tuple.1.daily_id = i64::from(0);
+            //     }
+            //     tuple.1.subtasks.insert(sub_tuple.0, sub_tuple.1);
+            // }
+            // self.content.insert(tuple.0, tuple.1);
+            let (tuple,new_counter) = self.recursive_id(tuple,counter);
+            counter = new_counter;
+            self.content.insert(tuple.0, tuple.1);
         }
         self
     }
@@ -225,8 +354,8 @@ impl Signifier {
 
 /// This is the main object template that will be extended for every entry in the Data HashMap.
 /// The idea would be that more and more attributes are added as needed to identify what the object
-/// is and where it is in the system.
-#[derive(Serialize, Deserialize, Debug,Clone)]
+/// is and wherie it is in the system.
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BujoObject {
     pub content_type: String,
     pub content: String,
@@ -234,6 +363,7 @@ pub struct BujoObject {
     pub current_date: i64,
     pub date_added: i64,
     pub daily_id: i64,
+    pub subtasks: HashMap<i64, BujoObject>,
 }
 
 #[cfg(test)]
