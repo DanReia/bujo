@@ -88,7 +88,6 @@ impl Data {
         max_val
     }
 
-
     /// Add an object to the Data HashMap. The idea is to only provide what is needed each time.
     /// This will need to be modified alot going forward
     pub fn add_object(&mut self, content_temp: String, content_type_temp: String) -> &mut Data {
@@ -118,7 +117,7 @@ impl Data {
             date_added: date,
             daily_id: daily_key,
             subtasks: HashMap::new(),
-        };  
+        };
         self.content.insert(key, obj);
         self
     }
@@ -148,7 +147,10 @@ impl Data {
 
         let date = Local::now().timestamp();
 
-        let upper_task = self.content.get_mut(&primary_key).expect("Subtask hashMap not available");
+        let upper_task = self
+            .content
+            .get_mut(&primary_key)
+            .expect("Subtask hashMap not available");
         let subtask_key = Data::get_max_subtask_key(&upper_task.subtasks) + 1;
 
         let obj = BujoObject {
@@ -161,9 +163,9 @@ impl Data {
             subtasks: HashMap::new(),
         };
 
-        upper_task.subtasks.insert(subtask_key,obj);
+        upper_task.subtasks.insert(subtask_key, obj);
         self
-    }
+    } 
 
     ///Method to get the primary key based on one of the secondary keys
     fn get_primary_key(&mut self, id: &i64, id_type: String) -> i64 {
@@ -253,38 +255,38 @@ impl Data {
         self
     }
 
-    pub fn recursive_id(&mut self,mut tuple: (i64,BujoObject), mut counter:i64)-> ((i64,BujoObject),i64) {
-            let mut sub_vec: Vec<(i64, BujoObject)> = tuple.1.subtasks.clone().into_iter().collect();
-            sub_vec.sort_by_key(|a| a.1.current_date);
+    pub fn recursive_id(
+        &mut self,
+        mut tuple: (i64, BujoObject),
+        mut counter: i64,
+    ) -> ((i64, BujoObject), i64) {
+        let mut sub_vec: Vec<(i64, BujoObject)> = tuple.1.subtasks.clone().into_iter().collect();
+        sub_vec.sort_by_key(|a| a.1.current_date);
 
-            tuple.1.subtasks = HashMap::new();
-            for mut sub_tuple in sub_vec.into_iter() {
-                let sub_tuple_subtask_length = &sub_tuple.1.subtasks.len();
-                let sub_dt = DateTime::<Utc>::from_utc(
-                    NaiveDateTime::from_timestamp(tuple.1.current_date, 0),
-                    Utc,
-                );
-                if Local::now().date() == sub_dt.date() {
-                    sub_tuple.1.daily_id = counter;
-                    counter = counter + 1;
-                } else {
-                    sub_tuple.1.daily_id = i64::from(0);
-                }
-                let t2 = sub_tuple.1.clone();
-                tuple.1.subtasks.insert(sub_tuple.0, t2);
-                if sub_tuple_subtask_length> &0{
-                    let (next_tuple,counter) = self.recursive_id(sub_tuple,counter);
-                    return (next_tuple,counter)
-                }
+        tuple.1.subtasks = HashMap::new();
+        for mut sub_tuple in sub_vec.into_iter() {
+            let sub_tuple_subtask_length = &sub_tuple.1.subtasks.len();
+            let sub_dt = DateTime::<Utc>::from_utc(
+                NaiveDateTime::from_timestamp(tuple.1.current_date, 0),
+                Utc,
+            );
+            if Local::now().date() == sub_dt.date() {
+                sub_tuple.1.daily_id = counter;
+                counter = counter + 1;
+            } else {
+                sub_tuple.1.daily_id = i64::from(0);
             }
-            (tuple,counter)
+            let t2 = sub_tuple.1.clone();
+            tuple.1.subtasks.insert(sub_tuple.0, t2);
+            if sub_tuple_subtask_length > &0 {
+                let (next_tuple, counter) = self.recursive_id(sub_tuple, counter);
+                return (next_tuple, counter);
+            }
+        }
+        (tuple, counter)
     }
+
     /// Very poor implementation
-    /// Currently does not account for subtasks
-    ///
-    /// 1. At every read, calculate new secondary id's
-    /// 2. Secondary id order needs to take into account subtasks to print in order
-    /// 3.
     pub fn calculate_ids(mut self) -> Data {
         // Read in data vector
         let mut data_vec: Vec<(i64, BujoObject)> = self.content.clone().into_iter().collect();
@@ -307,32 +309,18 @@ impl Data {
                 tuple.1.daily_id = i64::from(0);
             }
 
-            // let mut sub_vec: Vec<(i64, BujoObject)> = tuple.1.subtasks.clone().into_iter().collect();
-            // sub_vec.sort_by_key(|a| a.1.current_date);
-
-            // tuple.1.subtasks = HashMap::new();
-            // for mut sub_tuple in sub_vec.into_iter() {
-
-            //     let sub_dt = DateTime::<Utc>::from_utc(
-            //         NaiveDateTime::from_timestamp(tuple.1.current_date, 0),
-            //         Utc,
-            //     );
-            //     if Local::now().date() == sub_dt.date() {
-            //         sub_tuple.1.daily_id = counter;
-            //         counter = counter + 1;
-            //     } else {
-            //         sub_tuple.1.daily_id = i64::from(0);
-            //     }
-            //     tuple.1.subtasks.insert(sub_tuple.0, sub_tuple.1);
-            // }
-            // self.content.insert(tuple.0, tuple.1);
-            let (tuple,new_counter) = self.recursive_id(tuple,counter);
+            let (tuple, new_counter) = self.recursive_id(tuple, counter);
             counter = new_counter;
             self.content.insert(tuple.0, tuple.1);
         }
         self
     }
 }
+
+// enum ID{
+//     Daily,
+//     Monthly,
+// }
 
 pub enum Signifier {
     Complete,

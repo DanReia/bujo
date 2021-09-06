@@ -114,7 +114,7 @@ fn main() {
         )
         .subcommand(
             SubCommand::with_name("delete")
-                .about("Delete from raw json using HashMap id")
+                .about("Delete from total view using HashMap id")
                 .arg(Arg::with_name("id").takes_value(true)),
         )
         .subcommand(
@@ -215,7 +215,7 @@ fn main() {
                 .add_object(x.join(" ").to_string(), content_type)
                 .write();
         }
-        (_, None) => println!("No argument provided"),
+        (_, None) =>Printer::new(data).daily(),
         _ => unreachable!(),
     }
 }
